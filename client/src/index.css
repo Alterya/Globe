@@ -1277,3 +1277,60 @@ body {
   min-width: 0;
   max-width: 100%;
 }
+
+/* AI RAG Interface Styles */
+.text-warning {
+  color: #f59e0b;
+}
+
+.text-info {
+  color: #3b82f6;
+}
+
+.bg-accent\/5 {
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+.bg-accent\/8 {
+  background-color: rgba(99, 102, 241, 0.08);
+}
+
+.bg-accent\/10 {
+  background-color: rgba(99, 102, 241, 0.1);
+}
+
+.border-accent\/20 {
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.bg-error\/10 {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.border-error\/20 {
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.hover\:bg-accent\/20:hover {
+  background-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Enhanced Tooltip Styles */
+.tooltip {
+  font-family: system-ui, -apple-system, sans-serif;
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color) !important;
+}
+
+.tooltip button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.tooltip button:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+}
+
+.tooltip button:active {
+  transform: translateY(0px) !important;
+}

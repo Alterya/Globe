@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as d3 from 'd3';
-import { Filter, RefreshCw, Globe, Server, Coins } from 'lucide-react';
+import { Filter, RefreshCw, Globe, Server, Coins, Brain, MessageSquare, TrendingUp, Zap, AlertCircle, ExternalLink } from 'lucide-react';
 import { VASPData } from '../types';
+import { AIService } from '../services/aiService';
 
 interface NetworkGraphProps {
   data: VASPData[];
@@ -28,19 +29,35 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'domains' | 'ips' | 'addresses'>('all');
   const [isLoading, setIsLoading] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  
+  // AI RAG states
+  const [ragQuery, setRagQuery] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiFilteredData, setAiFilteredData] = useState<VASPData[]>([]);
+  const [aiExplanation, setAiExplanation] = useState('');
+  const [aiInsights, setAiInsights] = useState<string[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiConfidence, setAiConfidence] = useState(0);
+  const [hideEdges, setHideEdges] = useState(false);
+  const [aggregateBy, setAggregateBy] = useState<string | undefined>();
+  
+  const aiService = useMemo(() => AIService.getInstance(), []);
 
   const processNetworkData = useMemo(() => {
     const nodesMap = new Map<string, NetworkNode>();
     const links: NetworkLink[] = [];
     const linkSet = new Set<string>();
 
+    // Use AI filtered data if available, otherwise use regular filtered data
+    let baseData = aiFilteredData.length > 0 ? aiFilteredData : data;
+    
     const filteredData = searchQuery 
-      ? data.filter(item => 
+      ? baseData.filter(item => 
           item.source_domain.toLowerCase().includes(searchQuery.toLowerCase()) ||
           item.crypto_address.toLowerCase().includes(searchQuery.toLowerCase()) ||
           item.source_domain_ip.toLowerCase().includes(searchQuery.toLowerCase())
         )
-      : data;
+      : baseData;
 
     // Process each VASP record
     filteredData.forEach(item => {
@@ -126,15 +143,63 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
     });
 
     const nodeIds = new Set(filteredNodes.map(n => n.id));
-    const filteredLinks = links.filter(link => 
+    let filteredLinks = links.filter(link => 
       nodeIds.has(link.source as string) && nodeIds.has(link.target as string)
     );
+
+    // Hide edges if requested by AI
+    if (hideEdges) {
+      filteredLinks = [];
+    }
 
     return {
       nodes: filteredNodes,
       links: filteredLinks
     };
-  }, [data, searchQuery, selectedFilter]);
+  }, [data, searchQuery, selectedFilter, aiFilteredData, hideEdges]);
+
+  // AI Analysis function with debouncing
+  const analyzeWithAI = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setAiFilteredData([]);
+      setAiExplanation('');
+      setAiInsights([]);
+      setAiError(null);
+      setAiConfidence(0);
+      setHideEdges(false);
+      setAggregateBy(undefined);
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAiError(null);
+
+    try {
+      const result = await aiService.analyzeQuery(query, data);
+      setAiFilteredData(result.filteredData);
+      setAiExplanation(result.explanation);
+      setAiInsights(result.insights);
+      setAiConfidence(result.confidence);
+      setHideEdges(result.hideEdges || false);
+      setAggregateBy(result.aggregateBy);
+    } catch (error) {
+      setAiError('Failed to analyze query. Please try again.');
+      console.error('AI analysis error:', error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [aiService, data]);
+
+  // Debounced AI analysis
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (ragQuery) {
+        analyzeWithAI(ragQuery);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [ragQuery, analyzeWithAI]);
 
   // Handle window resize
   useEffect(() => {
@@ -258,25 +323,116 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
       .style('background', 'var(--surface-bg)')
       .style('border', '1px solid var(--border-color)')
       .style('border-radius', '8px')
-      .style('padding', '10px')
+      .style('padding', '12px')
       .style('font-size', '12px')
       .style('box-shadow', 'var(--shadow-lg)')
-      .style('pointer-events', 'none')
-      .style('z-index', '1000');
+      .style('pointer-events', 'auto')
+      .style('z-index', '1000')
+      .style('max-width', '280px');
 
-    node.on('mouseover', (event, d) => {
+    const createTooltipContent = (d: NetworkNode) => {
+      if (d.group === 'domain') {
+        // Extract clean domain name (remove any aggregation prefixes)
+        const domainName = d.label.replace(/^(domain_|aggregated_)/, '');
+        const alteryaUrl = `https://alterya_rnd.alterya.io/explorer/domain/${domainName}`;
+        
+        // Check if this is an aggregated node
+        const isAggregated = (d as any).aggregated;
+        
+        return `
+          <div style="color: var(--text-primary); line-height: 1.4;">
+            <div style="font-weight: 600; margin-bottom: 8px; color: var(--accent-color); display: flex; align-items: center; gap: 6px;">
+              🌐 ${domainName}
+              ${isAggregated ? `<span style="background: rgba(99, 102, 241, 0.1); color: var(--accent-color); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500;">${isAggregated.count} nodes</span>` : ''}
+            </div>
+            <div style="margin-bottom: 10px; font-size: 11px; color: var(--text-secondary);">
+              ${d.title}${isAggregated ? `<br><small style="color: var(--accent-color);">Aggregated ${isAggregated.type}</small>` : ''}
+            </div>
+            <button 
+              onclick="window.open('${alteryaUrl}', '_blank')"
+              style="
+                background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 11px;
+                font-weight: 500;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transition: all 0.2s ease;
+                width: 100%;
+                justify-content: center;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+              "
+              onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(99, 102, 241, 0.3)'"
+              onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m18 13 6-6-6-6"/>
+                <path d="M7 7h7v7"/>
+                <path d="m7 17 10-10"/>
+              </svg>
+              View in Alterya Platform
+            </button>
+          </div>
+        `;
+      } else {
+        // For non-domain nodes, show basic tooltip
+        const nodeType = d.group === 'ip' ? '🖥️' : '₿';
+        return `
+          <div style="color: var(--text-primary); line-height: 1.4;">
+            <div style="font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
+              ${nodeType} ${d.label}
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary);">
+              ${d.title}
+            </div>
+          </div>
+        `;
+      }
+    };
+
+    let tooltipTimeout: NodeJS.Timeout | null = null;
+
+    const showTooltip = (event: MouseEvent, d: NetworkNode) => {
+      if (tooltipTimeout) {
+        clearTimeout(tooltipTimeout);
+        tooltipTimeout = null;
+      }
+      
       tooltip.transition()
         .duration(200)
         .style('opacity', .9);
-      tooltip.html(d.title)
-        .style('left', (event.pageX + 10) + 'px')
-        .style('top', (event.pageY - 28) + 'px');
-    })
-    .on('mouseout', () => {
-      tooltip.transition()
-        .duration(500)
-        .style('opacity', 0);
-    });
+      tooltip.html(createTooltipContent(d))
+        .style('left', (event.pageX + 15) + 'px')
+        .style('top', (event.pageY - 10) + 'px');
+    };
+
+    const hideTooltip = () => {
+      tooltipTimeout = setTimeout(() => {
+        tooltip.transition()
+          .duration(300)
+          .style('opacity', 0);
+      }, 100);
+    };
+
+    const keepTooltipVisible = () => {
+      if (tooltipTimeout) {
+        clearTimeout(tooltipTimeout);
+        tooltipTimeout = null;
+      }
+    };
+
+    // Add event listeners to tooltip itself
+    tooltip
+      .on('mouseenter', keepTooltipVisible)
+      .on('mouseleave', hideTooltip);
+
+    node.on('mouseover', showTooltip)
+      .on('mouseout', hideTooltip);
 
     // Update positions on simulation tick
     simulation.on('tick', () => {
@@ -317,10 +473,127 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
 
     return (
     <div className="flex gap-4">
-      {/* Left Sidebar */}
-      <div className="w-80 space-y-3">
+      {/* Left Sidebar with AI Interface */}
+      <div className="w-80 space-y-2 h-fit">
+        {/* AI RAG Interface */}
+        <div className="card" style={{ padding: '0.75rem', borderColor: 'var(--accent-color)', borderWidth: '1px' }}>
+          <div className="flex items-center space-x-2 mb-2">
+          </div>
+          
+          <div className="relative mb-2">
+            <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+              {isAnalyzing ? (
+                <div className="spinner" style={{ width: '0.875rem', height: '0.875rem' }} />
+              ) : (
+                <MessageSquare className="h-3.5 w-3.5 text-accent" />
+              )}
+            </div>
+            <textarea
+              placeholder="Live filtering & manipulation:&#10;• 'filter bitcoin only'&#10;• 'remove ethereum'&#10;• 'hide edges'&#10;• 'aggregate by domain'"
+              value={ragQuery}
+              onChange={(e) => setRagQuery(e.target.value)}
+              className="input w-full pl-8 pr-8 resize-none text-xs"
+              rows={3}
+              style={{ 
+                paddingLeft: '2rem',
+                fontSize: '0.75rem',
+                lineHeight: '1.2',
+                background: 'rgba(99, 102, 241, 0.05)',
+                border: '1px solid rgba(99, 102, 241, 0.3)'
+              }}
+            />
+            {ragQuery && (
+              <button
+                onClick={() => {
+                  setRagQuery('');
+                  setAiFilteredData([]);
+                  setAiExplanation('');
+                  setAiInsights([]);
+                  setAiError(null);
+                  setAiConfidence(0);
+                  setHideEdges(false);
+                  setAggregateBy(undefined);
+                }}
+                className="absolute top-1 right-1 text-muted hover:text-error transition-colors"
+                title="Reset filters"
+              >
+                <span className="text-xs">✕</span>
+              </button>
+            )}
+          </div>
+
+          {/* AI Status */}
+          {isAnalyzing && (
+            <div className="mb-2 p-2 bg-accent/5 border border-accent/20 rounded flex items-center space-x-2">
+              <div className="spinner" style={{ width: '0.75rem', height: '0.75rem' }} />
+              <span className="text-xs text-accent">Updating...</span>
+            </div>
+          )}
+
+          {/* AI Error */}
+          {aiError && (
+            <div className="mb-2 p-2 bg-error/10 border border-error/20 rounded text-xs text-error">
+              <AlertCircle className="h-3 w-3 inline mr-1" />
+              {aiError}
+            </div>
+          )}
+
+          {/* AI Results */}
+          {aiExplanation && (
+            <div className="p-2 bg-accent/8 border border-accent/20 rounded">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center space-x-1">
+                  <TrendingUp className="h-3 w-3 text-accent" />
+                  <span className="text-xs font-medium text-accent">Updated</span>
+                </div>
+                {aiConfidence > 0 && (
+                  <span className="text-xs text-secondary bg-accent/10 px-1 py-0.5 rounded">
+                    {Math.round(aiConfidence * 100)}%
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-secondary mb-2">{aiExplanation}</p>
+              
+              {/* Live Stats */}
+              <div className="grid grid-cols-2 gap-2 text-xs mb-1">
+                <div className="flex justify-between">
+                  <span className="text-muted">Nodes:</span>
+                  <span className="text-primary font-semibold">{processNetworkData.nodes.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted">Edges:</span>
+                  <span className="text-primary font-semibold">{processNetworkData.links.length}</span>
+                </div>
+              </div>
+              
+              {/* Status Indicators */}
+              <div className="flex space-x-2">
+                {hideEdges && (
+                  <div className="text-warning text-xs flex items-center space-x-1">
+                    <span>🔗</span><span>Hidden</span>
+                  </div>
+                )}
+                {aggregateBy && (
+                  <div className="text-info text-xs flex items-center space-x-1">
+                    <span>📊</span><span>By {aggregateBy}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Live Update Indicator */}
+          {ragQuery && !isAnalyzing && (
+            <div className="mt-2 p-1.5 bg-glass-bg border border-glass-border rounded">
+              <div className="flex items-center space-x-1">
+                <Zap className="h-3 w-3 text-accent" />
+                <span className="text-xs font-medium text-secondary">Live Active</span>
+              </div>
+            </div>
+          )}
+        </div>
         {/* Controls */}
-        <div className="card" style={{ padding: '1rem' }}>
+        <div className="card" style={{ padding: '0.75rem' }}>
           <div className="mb-3">
             <h3 className="text-base font-semibold text-primary mb-3">Network Graph</h3>
             <div className="space-y-3">
