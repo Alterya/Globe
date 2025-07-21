@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as d3 from 'd3';
 import { Filter, RefreshCw, Globe, Server, Coins } from 'lucide-react';
 import { VASPData } from '../types';
@@ -27,6 +27,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'domains' | 'ips' | 'addresses'>('all');
   const [isLoading, setIsLoading] = useState(false);
+  const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   const processNetworkData = useMemo(() => {
     const nodesMap = new Map<string, NetworkNode>();
@@ -135,6 +136,16 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
     };
   }, [data, searchQuery, selectedFilter]);
 
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     if (!svgRef.current || processNetworkData.nodes.length === 0) return;
 
@@ -143,9 +154,13 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove(); // Clear previous content
 
-    const width = 800;
-    const height = 600;
-    const margin = 40;
+    // Calculate responsive dimensions based on available space
+    const availableWidth = windowSize.width - 320 - 80; // Subtract sidebar width (320) + gaps/padding (80)
+    const availableHeight = windowSize.height - 200; // Subtract header + footer + padding (200)
+    
+    const width = Math.max(600, Math.min(availableWidth, 1200)); // Min 600, max 1200
+    const height = Math.max(400, Math.min(availableHeight, 700)); // Min 400, max 700
+    const margin = 20;
 
     svg.attr('width', width).attr('height', height);
 
@@ -287,7 +302,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
       simulation.stop();
       tooltip.remove();
     };
-  }, [processNetworkData]);
+  }, [processNetworkData, windowSize]);
 
   const refreshNetwork = () => {
     if (svgRef.current) {
@@ -300,120 +315,127 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Controls */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-primary">Network Graph</h3>
-          <div className="flex items-center space-x-4">
-            {/* Filter Controls */}
-            <div className="flex items-center space-x-2">
-              <Filter className="h-4 w-4 text-secondary" />
-              <select 
-                value={selectedFilter}
-                onChange={(e) => setSelectedFilter(e.target.value as any)}
-                className="input w-32"
-                style={{ paddingLeft: '0.75rem' }}
+    return (
+    <div className="flex gap-4">
+      {/* Left Sidebar */}
+      <div className="w-80 space-y-3">
+        {/* Controls */}
+        <div className="card" style={{ padding: '1rem' }}>
+          <div className="mb-3">
+            <h3 className="text-base font-semibold text-primary mb-3">Network Graph</h3>
+            <div className="space-y-3">
+              {/* Filter Controls */}
+              <div className="flex items-center space-x-3">
+                <Filter className="h-4 w-4 text-secondary" />
+                <select 
+                  value={selectedFilter}
+                  onChange={(e) => setSelectedFilter(e.target.value as any)}
+                  className="input flex-1 text-sm"
+                  style={{ paddingLeft: '0.75rem', fontSize: '0.85rem' }}
+                >
+                  <option value="all">All Nodes</option>
+                  <option value="domains">Domains Only</option>
+                  <option value="ips">IPs Only</option>
+                  <option value="addresses">Addresses Only</option>
+                </select>
+              </div>
+
+              <button
+                onClick={refreshNetwork}
+                className="btn w-full flex items-center justify-center space-x-2 text-sm py-2"
+                title="Reset zoom and center network"
               >
-                <option value="all">All Nodes</option>
-                <option value="domains">Domains Only</option>
-                <option value="ips">IPs Only</option>
-                <option value="addresses">Addresses Only</option>
-              </select>
-            </div>
-
-            <button
-              onClick={refreshNetwork}
-              className="btn"
-              title="Reset zoom and center network"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="flex items-center space-x-6 mb-4 text-sm">
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#6366f1' }}></div>
-            <span className="text-secondary">
-              <Globe className="h-3 w-3 inline mr-1" />
-              Domains ({processNetworkData.nodes.filter(n => n.group === 'domain').length})
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#10b981' }}></div>
-            <span className="text-secondary">
-              <Server className="h-3 w-3 inline mr-1" />
-              IPs ({processNetworkData.nodes.filter(n => n.group === 'ip').length})
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#f59e0b' }}></div>
-            <span className="text-secondary">
-              <Coins className="h-3 w-3 inline mr-1" />
-              Addresses ({processNetworkData.nodes.filter(n => n.group === 'address').length})
-            </span>
-          </div>
-        </div>
-
-        <p className="text-sm text-secondary mb-4">
-          Interactive network showing connections between domains, IP addresses, and cryptocurrency addresses. 
-          Drag nodes to rearrange, zoom with mouse wheel, hover for details.
-        </p>
-      </div>
-
-      {/* Network Container */}
-      <div className="card relative">
-        {isLoading && (
-          <div className="loading-overlay">
-            <div className="flex items-center space-x-2">
-              <div className="spinner"></div>
-              <span className="text-secondary">Building network...</span>
+                <RefreshCw className="h-4 w-4" />
+                <span>Reset View</span>
+              </button>
             </div>
           </div>
-        )}
-        <div className="w-full flex justify-center">
-          <svg 
-            ref={svgRef}
-            className="border rounded-lg"
-            style={{ background: 'var(--primary-bg)', border: '1px solid var(--border-color)' }}
-          />
+
+          {/* Legend */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-secondary">Legend</h4>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center space-x-3">
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#6366f1' }}></div>
+                <span className="text-secondary flex items-center">
+                  <Globe className="h-3 w-3 mr-2" />
+                  Domains ({processNetworkData.nodes.filter(n => n.group === 'domain').length})
+                </span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#10b981' }}></div>
+                <span className="text-secondary flex items-center">
+                  <Server className="h-3 w-3 mr-2" />
+                  IPs ({processNetworkData.nodes.filter(n => n.group === 'ip').length})
+                </span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#f59e0b' }}></div>
+                <span className="text-secondary flex items-center">
+                  <Coins className="h-3 w-3 mr-2" />
+                  Addresses ({processNetworkData.nodes.filter(n => n.group === 'address').length})
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
-        
-        {processNetworkData.nodes.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-muted">No network data available for current filters</p>
+
+        {/* Stats */}
+        {processNetworkData.nodes.length > 0 && (
+          <div className="card" style={{ padding: '1rem' }}>
+            <h4 className="text-sm font-medium text-secondary mb-2">Statistics</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm text-secondary">Total Nodes</span>
+                <span className="text-lg font-bold text-primary">{processNetworkData.nodes.length}</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm text-secondary">Connections</span>
+                <span className="text-lg font-bold text-primary">{processNetworkData.links.length}</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm text-secondary">Domains</span>
+                <span className="text-lg font-bold text-primary">
+                  {processNetworkData.nodes.filter(n => n.group === 'domain').length}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm text-secondary">IP Addresses</span>
+                <span className="text-lg font-bold text-primary">
+                  {processNetworkData.nodes.filter(n => n.group === 'ip').length}
+                </span>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Stats */}
-      {processNetworkData.nodes.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="card text-center">
-            <p className="text-2xl font-bold text-primary">{processNetworkData.nodes.length}</p>
-            <p className="text-sm text-secondary">Total Nodes</p>
+      {/* Main Graph Area */}
+      <div className="flex-1">
+        <div className="card relative" style={{ padding: '1rem' }}>
+          {isLoading && (
+            <div className="loading-overlay">
+              <div className="flex items-center space-x-2">
+                <div className="spinner"></div>
+                <span className="text-secondary">Building network...</span>
+              </div>
+            </div>
+          )}
+          <div className="w-full flex justify-center">
+            <svg 
+              ref={svgRef}
+              className="border rounded-lg"
+              style={{ background: 'var(--primary-bg)', border: '1px solid var(--border-color)' }}
+            />
           </div>
-          <div className="card text-center">
-            <p className="text-2xl font-bold text-primary">{processNetworkData.links.length}</p>
-            <p className="text-sm text-secondary">Connections</p>
-          </div>
-          <div className="card text-center">
-            <p className="text-2xl font-bold text-primary">
-              {processNetworkData.nodes.filter(n => n.group === 'domain').length}
-            </p>
-            <p className="text-sm text-secondary">Domains</p>
-          </div>
-          <div className="card text-center">
-            <p className="text-2xl font-bold text-primary">
-              {processNetworkData.nodes.filter(n => n.group === 'ip').length}
-            </p>
-            <p className="text-sm text-secondary">IP Addresses</p>
-          </div>
+          
+          {processNetworkData.nodes.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className="text-muted">No network data available for current filters</p>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

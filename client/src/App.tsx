@@ -138,7 +138,7 @@ function App() {
           />
           
           <main className="main-content">
-            <div className="container py-8">
+            <div className="container py-2" style={{ paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
               <div className="content-wrapper">
                 {activeTab === 'dashboard' ? (
                   <Dashboard searchQuery={searchQuery} />
@@ -150,7 +150,7 @@ function App() {
           </main>
           
           <footer className="app-footer">
-            <div className="container py-6">
+            <div className="container py-2">
               <div className="footer-content">
                 <p className="text-center text-sm text-secondary">
                   © 2025 Globe - GLOBE by Alterya.
