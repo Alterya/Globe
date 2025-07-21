@@ -8,11 +8,8 @@ import { VASPData } from './types';
 import backgroundImage from './media/background.png';
 
 function App() {
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Check for saved theme preference or default to dark mode
-    const saved = localStorage.getItem('darkMode');
-    return saved ? JSON.parse(saved) : true;
-  });
+  // Always use dark mode
+  const isDarkMode = true;
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'network'>('dashboard');
   const [data, setData] = useState<VASPData[]>([]);
@@ -52,7 +49,12 @@ function App() {
     try {
       setIsUploading(true);
       const dataService = DataService.getInstance();
-      const loadedData = await dataService.loadDataFromFile(file);
+      
+      // Add a small delay to prevent flickering on fast uploads
+      const [loadedData] = await Promise.all([
+        dataService.loadDataFromFile(file),
+        new Promise(resolve => setTimeout(resolve, 200)) // Minimum loading time
+      ]);
       
       setData(loadedData);
       setHasData(true);
@@ -61,13 +63,14 @@ function App() {
       console.error('File upload failed:', error);
       throw error; // Re-throw to let the upload component handle the error display
     } finally {
-      setIsUploading(false);
+      // Ensure smooth transition by delaying state update slightly
+      setTimeout(() => {
+        setIsUploading(false);
+      }, 100);
     }
   };
 
-  const toggleDarkMode = () => {
-    setIsDarkMode((prev: boolean) => !prev);
-  };
+  // Dark mode is always enabled - no toggle needed
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
@@ -110,12 +113,14 @@ function App() {
   // Show file upload screen if no data is available
   if (!hasData) {
     return (
-      <div className="app-container" style={{ backgroundImage: `url(${backgroundImage})` }}>
+      <div className="app-container animate-slideInDown" style={{ backgroundImage: `url(${backgroundImage})` }}>
         <div className="app-overlay">
-          <FileUpload 
-            onFileUpload={handleFileUpload}
-            isLoading={isUploading}
-          />
+          <div className="animate-staggerIn">
+            <FileUpload 
+              onFileUpload={handleFileUpload}
+              isLoading={isUploading}
+            />
+          </div>
         </div>
       </div>
     );
@@ -126,8 +131,6 @@ function App() {
       <div className="app-overlay">
         <div className="app-content">
           <Header
-            isDarkMode={isDarkMode}
-            onToggleDarkMode={toggleDarkMode}
             searchQuery={searchQuery}
             onSearchChange={handleSearchChange}
             activeTab={activeTab}

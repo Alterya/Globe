@@ -101,7 +101,10 @@ const Dashboard: React.FC<DashboardProps> = ({ searchQuery }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="spinner"></div>
+        <div className="text-center">
+          <div className="spinner mb-4"></div>
+          <p className="text-secondary animate-pulse">Loading dashboard insights...</p>
+        </div>
       </div>
     );
   }
@@ -127,15 +130,15 @@ const Dashboard: React.FC<DashboardProps> = ({ searchQuery }) => {
     <div className="space-y-2">
       {/* Search Results Info */}
       {searchQuery && (
-        <div className="alert alert-info">
+        <div className="alert alert-info pulse animate-slideInDown">
           <p>
-            Showing {filteredData.length.toLocaleString()} results for "{searchQuery}"
+            🔍 Found <span className="font-semibold text-accent">{filteredData.length.toLocaleString()}</span> results for "<span className="font-medium">{searchQuery}</span>"
           </p>
         </div>
       )}
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 animate-staggerIn">
         <StatCard
           title="Total Records"
           value={stats.totalDomains}
@@ -163,7 +166,7 @@ const Dashboard: React.FC<DashboardProps> = ({ searchQuery }) => {
       </div>
 
       {/* Charts Grid */}
-      <div className="dashboard-charts-grid">
+      <div className="dashboard-charts-grid animate-staggerIn" style={{ animationDelay: '0.2s' }}>
         <ChartCard 
           title="Blockchain Distribution" 
           subtitle="Distribution of cryptocurrency chains"

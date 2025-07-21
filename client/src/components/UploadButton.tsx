@@ -49,16 +49,16 @@ const UploadButton: React.FC<UploadButtonProps> = ({
   return (
     <div className="flex items-center space-x-3">
       {currentFileName && (
-        <div className="flex items-center space-x-2 text-sm text-secondary">
-          <FileText className="h-4 w-4" />
-          <span className="truncate max-w-48">{currentFileName}</span>
+        <div className="flex items-center space-x-2 text-sm text-secondary animate-slideInDown bg-accent/5 px-3 py-1.5 rounded-lg">
+          <FileText className="h-4 w-4 text-accent animate-pulse" />
+          <span className="truncate max-w-48 font-medium">{currentFileName}</span>
         </div>
       )}
       
       <button
         onClick={openFileDialog}
         disabled={isLoading}
-        className="btn flex items-center space-x-2 hover:scale-105 transition-transform"
+        className="btn flex items-center space-x-2 relative overflow-hidden group"
         title="Upload new CSV file"
       >
         <input
@@ -70,15 +70,19 @@ const UploadButton: React.FC<UploadButtonProps> = ({
           disabled={isLoading}
         />
         
-        {isLoading ? (
-          <div className="spinner" style={{ width: '1rem', height: '1rem' }} />
-        ) : (
-          <Upload className="h-4 w-4" />
-        )}
+        <div className="relative z-10 flex items-center space-x-2 transition-transform duration-300 group-hover:scale-105">
+          {isLoading ? (
+            <div className="spinner" style={{ width: '1rem', height: '1rem' }} />
+          ) : (
+            <Upload className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />
+          )}
+          
+          <span className="text-sm font-medium">
+            {isLoading ? 'Processing...' : 'New CSV'}
+          </span>
+        </div>
         
-        <span className="text-sm font-medium">
-          {isLoading ? 'Uploading...' : 'New CSV'}
-        </span>
+        <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
       </button>
     </div>
   );

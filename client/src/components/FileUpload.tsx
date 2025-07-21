@@ -65,14 +65,17 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isLoading = false
     }
 
     try {
+      setUploadStatus('idle'); // Keep uploading state
       await onFileUpload(file);
-      setUploadStatus('success');
+      // Don't set success status - let the parent component handle navigation
       setErrorMessage('');
-      setTimeout(() => setUploadStatus('idle'), 2000);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Upload failed');
       setUploadStatus('error');
-      setTimeout(() => setUploadStatus('idle'), 3000);
+      setTimeout(() => {
+        setUploadStatus('idle');
+        setErrorMessage('');
+      }, 3000);
     }
   };
 
@@ -135,14 +138,13 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isLoading = false
 
         <div
           className={`
-            relative border-2 border-dashed rounded-2xl p-12 text-center
-            transition-all duration-300 cursor-pointer
+            file-upload-area relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer
             ${isDragActive 
-              ? 'border-accent bg-accent-light scale-105' 
+              ? 'drag-active border-accent bg-accent-light' 
               : uploadStatus === 'error'
                 ? 'border-error bg-error/5'
                 : uploadStatus === 'success'
-                  ? 'border-success bg-success/5'
+                  ? 'border-success bg-success/5 upload-success-fade'
                   : 'border-border-color bg-glass-bg hover:border-accent hover:bg-accent-light'
             }
           `}

@@ -247,24 +247,44 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
       address: '#f59e0b'
     };
 
-    // Create force simulation
+    // Create force simulation with fast, stable positioning
     const simulation = d3.forceSimulation<NetworkNode>(processNetworkData.nodes)
       .force('link', d3.forceLink<NetworkNode, NetworkLink>(processNetworkData.links)
         .id(d => d.id)
-        .distance(100))
-      .force('charge', d3.forceManyBody().strength(-300))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(30));
+        .distance(100)
+        .strength(0.7))
+      .force('charge', d3.forceManyBody().strength(-300).distanceMin(15).distanceMax(300))
+      .force('center', d3.forceCenter(width / 2, height / 2).strength(0.3))
+      .force('collision', d3.forceCollide().radius(30).strength(0.9))
+      .alphaDecay(0.02) // Faster convergence
+      .velocityDecay(0.4) // High friction for stability
+      .alpha(0.8) // Higher initial energy for faster settling
+      .stop(); // Start stopped to pre-calculate positions
 
-    // Create links
-    const link = container.append('g')
-      .attr('class', 'links')
+    // Pre-run simulation to get stable positions before showing nodes
+    for (let i = 0; i < 100; i++) {
+      simulation.tick();
+    }
+    
+    // Now restart with lower energy for final settling
+    simulation.alpha(0.1).restart();
+
+    // Create links with fast, smooth entrance
+    const linkContainer = container.append('g').attr('class', 'links');
+    const link = linkContainer
       .selectAll('line')
       .data(processNetworkData.links)
       .join('line')
       .attr('stroke', 'var(--border-color)')
-      .attr('stroke-opacity', 0.6)
+      .attr('stroke-opacity', 0) // Start invisible
       .attr('stroke-width', 2);
+    
+    // Links appear with nodes simultaneously
+    link.transition()
+      .duration(300)
+      .ease(d3.easeCubicOut)
+      .delay(0) // Same time as nodes
+      .attr('stroke-opacity', 0.6);
 
     // Create link labels
     const linkLabel = container.append('g')
@@ -286,7 +306,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
       .attr('class', 'node')
       .call(d3.drag<any, NetworkNode>()
         .on('start', (event, d) => {
-          if (!event.active) simulation.alphaTarget(0.3).restart();
+          if (!event.active) simulation.alphaTarget(0.1).restart(); // Minimal restart
           d.fx = d.x;
           d.fy = d.y;
         })
@@ -295,25 +315,47 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
           d.fy = event.y;
         })
         .on('end', (event, d) => {
-          if (!event.active) simulation.alphaTarget(0);
+          if (!event.active) {
+            // Quick settling
+            simulation.alphaTarget(0.05);
+            setTimeout(() => simulation.alphaTarget(0), 100);
+          }
           d.fx = null;
           d.fy = null;
         }));
 
-    // Add circles to nodes
-    node.append('circle')
-      .attr('r', d => Math.max(8, Math.min(20, 5 + d.value * 2)))
+    // Add circles to nodes with fast, controlled entrance
+    const circles = node.append('circle')
+      .attr('r', d => Math.max(8, Math.min(20, 5 + d.value * 2))) // Start at final size
       .attr('fill', d => colorScale[d.group])
       .attr('stroke', d => d3.color(colorScale[d.group])?.darker(0.5)?.toString() || '#000')
-      .attr('stroke-width', 2);
+      .attr('stroke-width', 2)
+      .attr('opacity', 0) // Start invisible
+      .style('transform', 'scale(0.8)');
 
-    // Add labels to nodes
-    node.append('text')
+    // All nodes appear together instantly
+    circles.transition()
+      .duration(300)
+      .ease(d3.easeCubicOut)
+      .delay(0) // No stagger - all together
+      .attr('opacity', 1)
+      .style('transform', 'scale(1)');
+
+    // Add labels to nodes with fast entrance
+    const labels = node.append('text')
       .attr('dy', '.35em')
       .attr('x', d => Math.max(8, Math.min(20, 5 + d.value * 2)) + 5)
       .attr('font-size', '12px')
       .attr('fill', 'var(--text-primary)')
+      .attr('opacity', 0) // Start invisible
       .text(d => d.label);
+
+    // Labels appear with everything else
+    labels.transition()
+      .duration(300)
+      .ease(d3.easeCubicOut)
+      .delay(0) // Same time as nodes and links
+      .attr('opacity', 1);
 
     // Add tooltips
     const tooltip = d3.select('body').append('div')
@@ -434,8 +476,9 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
     node.on('mouseover', showTooltip)
       .on('mouseout', hideTooltip);
 
-    // Update positions on simulation tick
+    // Update positions on simulation tick with optimized performance
     simulation.on('tick', () => {
+      // Direct attribute updates for better performance during simulation
       link
         .attr('x1', d => (d.source as any).x || 0)
         .attr('y1', d => (d.source as any).y || 0)
@@ -450,8 +493,12 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
         .attr('transform', d => `translate(${d.x || 0},${d.y || 0})`);
     });
 
+    // Fast loading state transition
     simulation.on('end', () => {
-      setIsLoading(false);
+      // Quick transition since animations are now faster
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 50);
     });
 
     return () => {
@@ -472,35 +519,35 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
   };
 
     return (
-    <div className="flex gap-4">
+    <div className="flex gap-6">
       {/* Left Sidebar with AI Interface */}
-      <div className="w-80 space-y-2 h-fit">
+      <div className="w-80 space-y-4 h-fit">
         {/* AI RAG Interface */}
-        <div className="card" style={{ padding: '0.75rem', borderColor: 'var(--accent-color)', borderWidth: '1px' }}>
-          <div className="flex items-center space-x-2 mb-2">
+        <div className="ai-control-card">
+          <div className="ai-header">
+            <div className="ai-icon">
+              <Brain className="h-4 w-4" />
+            </div>
+            <div className="ai-title-section">
+              <h3 className="ai-title">AI Assistant</h3>
+              <p className="ai-subtitle">Natural language graph control</p>
+            </div>
           </div>
           
-          <div className="relative mb-2">
-            <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+          <div className="ai-input-container">
+            <div className="ai-input-icon">
               {isAnalyzing ? (
-                <div className="spinner" style={{ width: '0.875rem', height: '0.875rem' }} />
+                <div className="ai-spinner" />
               ) : (
-                <MessageSquare className="h-3.5 w-3.5 text-accent" />
+                <MessageSquare className="h-4 w-4" />
               )}
             </div>
             <textarea
-              placeholder="Live filtering & manipulation:&#10;• 'filter bitcoin only'&#10;• 'remove ethereum'&#10;• 'hide edges'&#10;• 'aggregate by domain'"
+              placeholder="Try: 'filter bitcoin addresses' • 'remove ethereum' • 'hide all edges' • 'aggregate by domain'"
               value={ragQuery}
               onChange={(e) => setRagQuery(e.target.value)}
-              className="input w-full pl-8 pr-8 resize-none text-xs"
-              rows={3}
-              style={{ 
-                paddingLeft: '2rem',
-                fontSize: '0.75rem',
-                lineHeight: '1.2',
-                background: 'rgba(99, 102, 241, 0.05)',
-                border: '1px solid rgba(99, 102, 241, 0.3)'
-              }}
+              className="ai-textarea"
+              rows={2}
             />
             {ragQuery && (
               <button
@@ -514,67 +561,71 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
                   setHideEdges(false);
                   setAggregateBy(undefined);
                 }}
-                className="absolute top-1 right-1 text-muted hover:text-error transition-colors"
-                title="Reset filters"
+                className="ai-clear-button"
+                title="Clear and reset"
               >
-                <span className="text-xs">✕</span>
+                ✕
               </button>
             )}
           </div>
 
           {/* AI Status */}
           {isAnalyzing && (
-            <div className="mb-2 p-2 bg-accent/5 border border-accent/20 rounded flex items-center space-x-2">
-              <div className="spinner" style={{ width: '0.75rem', height: '0.75rem' }} />
-              <span className="text-xs text-accent">Updating...</span>
+            <div className="ai-status-card" style={{ background: 'rgba(99, 102, 241, 0.06)', borderColor: 'rgba(99, 102, 241, 0.2)' }}>
+              <div className="flex items-center space-x-2">
+                <div className="ai-spinner" style={{ width: '12px', height: '12px' }} />
+                <span className="text-xs" style={{ color: 'rgba(99, 102, 241, 0.9)' }}>Analyzing...</span>
+              </div>
             </div>
           )}
 
           {/* AI Error */}
           {aiError && (
-            <div className="mb-2 p-2 bg-error/10 border border-error/20 rounded text-xs text-error">
-              <AlertCircle className="h-3 w-3 inline mr-1" />
-              {aiError}
+            <div className="ai-status-card" style={{ background: 'rgba(239, 68, 68, 0.06)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
+              <div className="flex items-center space-x-2 text-xs" style={{ color: 'rgba(239, 68, 68, 0.9)' }}>
+                <AlertCircle className="h-3 w-3" />
+                <span>{aiError}</span>
+              </div>
             </div>
           )}
 
           {/* AI Results */}
           {aiExplanation && (
-            <div className="p-2 bg-accent/8 border border-accent/20 rounded">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center space-x-1">
-                  <TrendingUp className="h-3 w-3 text-accent" />
-                  <span className="text-xs font-medium text-accent">Updated</span>
+            <div className="ai-results-card">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <TrendingUp className="h-4 w-4" style={{ color: 'rgba(99, 102, 241, 0.8)' }} />
+                  <span className="text-sm font-medium" style={{ color: 'rgba(99, 102, 241, 0.9)' }}>Graph Updated</span>
                 </div>
                 {aiConfidence > 0 && (
-                  <span className="text-xs text-secondary bg-accent/10 px-1 py-0.5 rounded">
+                  <span className="ai-status-tag" style={{ background: 'rgba(99, 102, 241, 0.15)' }}>
                     {Math.round(aiConfidence * 100)}%
                   </span>
                 )}
               </div>
-              <p className="text-xs text-secondary mb-2">{aiExplanation}</p>
+              <p className="text-xs text-secondary mb-3" style={{ lineHeight: '1.4' }}>{aiExplanation}</p>
               
               {/* Live Stats */}
-              <div className="grid grid-cols-2 gap-2 text-xs mb-1">
-                <div className="flex justify-between">
-                  <span className="text-muted">Nodes:</span>
+              <div className="ai-stat-grid">
+                <div className="ai-stat-item">
+                  <span className="text-muted">Nodes</span>
                   <span className="text-primary font-semibold">{processNetworkData.nodes.length}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Edges:</span>
+                <div className="ai-stat-item">
+                  <span className="text-muted">Edges</span>
                   <span className="text-primary font-semibold">{processNetworkData.links.length}</span>
                 </div>
               </div>
               
               {/* Status Indicators */}
-              <div className="flex space-x-2">
+              <div className="ai-status-indicators">
                 {hideEdges && (
-                  <div className="text-warning text-xs flex items-center space-x-1">
+                  <div className="ai-status-tag" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>
                     <span>🔗</span><span>Hidden</span>
                   </div>
                 )}
                 {aggregateBy && (
-                  <div className="text-info text-xs flex items-center space-x-1">
+                  <div className="ai-status-tag" style={{ background: 'rgba(59, 130, 246, 0.15)' }}>
                     <span>📊</span><span>By {aggregateBy}</span>
                   </div>
                 )}
@@ -593,18 +644,18 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
           )}
         </div>
         {/* Controls */}
-        <div className="card" style={{ padding: '0.75rem' }}>
-          <div className="mb-3">
-            <h3 className="text-base font-semibold text-primary mb-3">Network Graph</h3>
-            <div className="space-y-3">
+        <div className="card apple-card" style={{ padding: '1rem' }}>
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold text-primary mb-4" style={{ lineHeight: '1.6' }}>Network Graph</h3>
+            <div className="space-y-4">
               {/* Filter Controls */}
               <div className="flex items-center space-x-3">
                 <Filter className="h-4 w-4 text-secondary" />
                 <select 
                   value={selectedFilter}
                   onChange={(e) => setSelectedFilter(e.target.value as any)}
-                  className="input flex-1 text-sm"
-                  style={{ paddingLeft: '0.75rem', fontSize: '0.85rem' }}
+                  className="input flex-1"
+                  style={{ paddingLeft: '0.75rem', fontSize: '12px', lineHeight: '1.6' }}
                 >
                   <option value="all">All Nodes</option>
                   <option value="domains">Domains Only</option>
@@ -613,21 +664,14 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
                 </select>
               </div>
 
-              <button
-                onClick={refreshNetwork}
-                className="btn w-full flex items-center justify-center space-x-2 text-sm py-2"
-                title="Reset zoom and center network"
-              >
-                <RefreshCw className="h-4 w-4" />
-                <span>Reset View</span>
-              </button>
+
             </div>
           </div>
 
           {/* Legend */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium text-secondary">Legend</h4>
-            <div className="space-y-2 text-xs">
+          <div className="space-y-4">
+            <h4 className="text-xs font-medium text-secondary" style={{ lineHeight: '1.6' }}>Legend</h4>
+            <div className="space-y-3" style={{ fontSize: '11px', lineHeight: '1.7' }}>
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#6366f1' }}></div>
                 <span className="text-secondary flex items-center">
@@ -685,12 +729,12 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
 
       {/* Main Graph Area */}
       <div className="flex-1">
-        <div className="card relative" style={{ padding: '1rem' }}>
+        <div className="card apple-card relative" style={{ padding: '1.25rem' }}>
           {isLoading && (
             <div className="loading-overlay">
               <div className="flex items-center space-x-2">
                 <div className="spinner"></div>
-                <span className="text-secondary">Building network...</span>
+                <span className="text-secondary" style={{ fontSize: '12px', lineHeight: '1.6' }}>Building network...</span>
               </div>
             </div>
           )}
@@ -704,7 +748,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
           
           {processNetworkData.nodes.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <p className="text-muted">No network data available for current filters</p>
+              <p className="text-muted" style={{ fontSize: '12px', lineHeight: '1.6' }}>No network data available for current filters</p>
             </div>
           )}
         </div>
