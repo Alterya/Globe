@@ -309,11 +309,13 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
-  padding: 1.5rem;
+  padding: 0.75rem;
   box-shadow: var(--shadow-xl);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  min-width: 0;
+  width: 100%;
 }
 
 .card::before {
@@ -367,8 +369,9 @@ body {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--glass-border);
-  margin-top: 4rem;
+  margin-top: auto;
   position: relative;
+  flex-shrink: 0;
 }
 
 .footer-content {
@@ -1177,7 +1180,9 @@ body {
 
 /* Chart container */
 .chart-container {
-  height: 20rem;
+  height: 12rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Chart text styling for dark mode */
@@ -1258,4 +1263,17 @@ body {
   border-radius: 0.5rem !important;
   padding: 0.75rem !important;
   font-size: 0.875rem !important;
+}
+
+/* Dashboard specific grid styling */
+.dashboard-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.dashboard-charts-grid .card {
+  min-width: 0;
+  max-width: 100%;
 }

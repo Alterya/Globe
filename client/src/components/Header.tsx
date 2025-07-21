@@ -1,6 +1,7 @@
 import React from 'react';
-import { Moon, Sun, Shield, Search, BarChart3, Network } from 'lucide-react';
+import { Moon, Sun, Search, BarChart3, Network } from 'lucide-react';
 import UploadButton from './UploadButton';
+import logo from '../media/logo.png';
 
 interface HeaderProps {
   isDarkMode: boolean;
@@ -31,9 +32,11 @@ const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between py-4">
           {/* Logo and Title */}
           <div className="flex items-center space-x-3 flex-shrink-0">
-            <div className="p-2 bg-accent rounded-lg">
-              <Shield className="h-6 w-6" style={{ color: 'white' }} />
-            </div>
+            <img 
+              src={logo} 
+              alt="Globe Logo" 
+              className="h-8 w-8 object-contain"
+            />
             <div>
               <h1 className="text-2xl font-bold text-primary">
                 Globe

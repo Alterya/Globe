@@ -10,8 +10,8 @@ interface ChartCardProps {
 const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, children, className }) => {
   return (
     <div className={`card ${className || ''}`}>
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-primary mb-1">
+      <div className="mb-2">
+        <h3 className="text-base font-semibold text-primary mb-1">
           {title}
         </h3>
         {subtitle && (
