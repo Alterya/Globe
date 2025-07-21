@@ -247,22 +247,34 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
       address: '#f59e0b'
     };
 
-    // Create force simulation
+    // Create force simulation with Apple-like smooth parameters
     const simulation = d3.forceSimulation<NetworkNode>(processNetworkData.nodes)
       .force('link', d3.forceLink<NetworkNode, NetworkLink>(processNetworkData.links)
         .id(d => d.id)
-        .distance(100))
-      .force('charge', d3.forceManyBody().strength(-300))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(30));
+        .distance(120)
+        .strength(0.5))
+      .force('charge', d3.forceManyBody().strength(-400).distanceMin(10).distanceMax(400))
+      .force('center', d3.forceCenter(width / 2, height / 2).strength(0.1))
+      .force('collision', d3.forceCollide().radius(35).strength(0.8))
+      .alphaDecay(0.01) // Slower decay for smoother transitions
+      .velocityDecay(0.15) // Reduced velocity for less chaotic movement
+      .alpha(0.3); // Lower initial energy
 
-    // Create links
-    const link = container.append('g')
-      .attr('class', 'links')
+    // Create links with smooth entrance animation
+    const linkContainer = container.append('g').attr('class', 'links');
+    const link = linkContainer
       .selectAll('line')
       .data(processNetworkData.links)
       .join('line')
       .attr('stroke', 'var(--border-color)')
+      .attr('stroke-opacity', 0) // Start invisible
+      .attr('stroke-width', 0); // Start thin
+    
+    // Animate links entrance
+    link.transition()
+      .duration(600)
+      .ease(d3.easeCubicOut)
+      .delay((d, i) => i * 10) // Staggered animation
       .attr('stroke-opacity', 0.6)
       .attr('stroke-width', 2);
 
@@ -286,7 +298,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
       .attr('class', 'node')
       .call(d3.drag<any, NetworkNode>()
         .on('start', (event, d) => {
-          if (!event.active) simulation.alphaTarget(0.3).restart();
+          if (!event.active) simulation.alphaTarget(0.2).restart(); // Gentler restart
           d.fx = d.x;
           d.fy = d.y;
         })
@@ -295,25 +307,42 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
           d.fy = event.y;
         })
         .on('end', (event, d) => {
-          if (!event.active) simulation.alphaTarget(0);
+          if (!event.active) {
+            // Gradual alpha target reduction for smooth settling
+            simulation.alphaTarget(0.1);
+            setTimeout(() => simulation.alphaTarget(0), 300);
+          }
           d.fx = null;
           d.fy = null;
         }));
 
-    // Add circles to nodes
+    // Add circles to nodes with smooth entrance animation
     node.append('circle')
-      .attr('r', d => Math.max(8, Math.min(20, 5 + d.value * 2)))
+      .attr('r', 0) // Start with radius 0
       .attr('fill', d => colorScale[d.group])
       .attr('stroke', d => d3.color(colorScale[d.group])?.darker(0.5)?.toString() || '#000')
-      .attr('stroke-width', 2);
+      .attr('stroke-width', 2)
+      .attr('opacity', 0) // Start invisible
+      .transition()
+      .duration(800)
+      .ease(d3.easeCubicOut)
+      .delay((d, i) => i * 20) // Staggered animation
+      .attr('r', d => Math.max(8, Math.min(20, 5 + d.value * 2)))
+      .attr('opacity', 1);
 
-    // Add labels to nodes
+    // Add labels to nodes with smooth entrance animation
     node.append('text')
       .attr('dy', '.35em')
       .attr('x', d => Math.max(8, Math.min(20, 5 + d.value * 2)) + 5)
       .attr('font-size', '12px')
       .attr('fill', 'var(--text-primary)')
-      .text(d => d.label);
+      .attr('opacity', 0) // Start invisible
+      .text(d => d.label)
+      .transition()
+      .duration(800)
+      .ease(d3.easeCubicOut)
+      .delay((d, i) => i * 25) // Slightly different staggering than circles
+      .attr('opacity', 1);
 
     // Add tooltips
     const tooltip = d3.select('body').append('div')
@@ -434,8 +463,9 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
     node.on('mouseover', showTooltip)
       .on('mouseout', hideTooltip);
 
-    // Update positions on simulation tick
+    // Update positions on simulation tick with optimized performance
     simulation.on('tick', () => {
+      // Direct attribute updates for better performance during simulation
       link
         .attr('x1', d => (d.source as any).x || 0)
         .attr('y1', d => (d.source as any).y || 0)
@@ -450,8 +480,12 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
         .attr('transform', d => `translate(${d.x || 0},${d.y || 0})`);
     });
 
+    // Enhanced end behavior with smooth loading state transition
     simulation.on('end', () => {
-      setIsLoading(false);
+      // Add a slight delay for the final animations to complete
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 200);
     });
 
     return () => {
@@ -489,7 +523,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
               )}
             </div>
             <textarea
-              placeholder="Live filtering & manipulation:&#10;• 'filter bitcoin only'&#10;• 'remove ethereum'&#10;• 'hide edges'&#10;• 'aggregate by domain'"
+              placeholder="Live AI RAG"
               value={ragQuery}
               onChange={(e) => setRagQuery(e.target.value)}
               className="input w-full pl-8 pr-8 resize-none text-xs"

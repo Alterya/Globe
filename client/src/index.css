@@ -1334,3 +1334,27 @@ body {
 .tooltip button:active {
   transform: translateY(0px) !important;
 }
+
+/* Apple-like smooth graph animations */
+.card svg {
+  transition: opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.loading-overlay {
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Smooth graph container transitions */
+.network-graph-container {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Enhance upload success feedback */
+.upload-success-fade {
+  animation: uploadSuccess 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes uploadSuccess {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}

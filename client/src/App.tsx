@@ -52,7 +52,12 @@ function App() {
     try {
       setIsUploading(true);
       const dataService = DataService.getInstance();
-      const loadedData = await dataService.loadDataFromFile(file);
+      
+      // Add a small delay to prevent flickering on fast uploads
+      const [loadedData] = await Promise.all([
+        dataService.loadDataFromFile(file),
+        new Promise(resolve => setTimeout(resolve, 200)) // Minimum loading time
+      ]);
       
       setData(loadedData);
       setHasData(true);
@@ -61,7 +66,10 @@ function App() {
       console.error('File upload failed:', error);
       throw error; // Re-throw to let the upload component handle the error display
     } finally {
-      setIsUploading(false);
+      // Ensure smooth transition by delaying state update slightly
+      setTimeout(() => {
+        setIsUploading(false);
+      }, 100);
     }
   };
 

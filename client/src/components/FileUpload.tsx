@@ -65,14 +65,17 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isLoading = false
     }
 
     try {
+      setUploadStatus('idle'); // Keep uploading state
       await onFileUpload(file);
-      setUploadStatus('success');
+      // Don't set success status - let the parent component handle navigation
       setErrorMessage('');
-      setTimeout(() => setUploadStatus('idle'), 2000);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Upload failed');
       setUploadStatus('error');
-      setTimeout(() => setUploadStatus('idle'), 3000);
+      setTimeout(() => {
+        setUploadStatus('idle');
+        setErrorMessage('');
+      }, 3000);
     }
   };
 
