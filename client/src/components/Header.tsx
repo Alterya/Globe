@@ -1,5 +1,6 @@
 import React from 'react';
 import { Moon, Sun, Shield, Search, BarChart3, Network } from 'lucide-react';
+import UploadButton from './UploadButton';
 
 interface HeaderProps {
   isDarkMode: boolean;
@@ -8,6 +9,9 @@ interface HeaderProps {
   onSearchChange: (query: string) => void;
   activeTab: 'dashboard' | 'network';
   onTabChange: (tab: 'dashboard' | 'network') => void;
+  onFileUpload?: (file: File) => Promise<void>;
+  isUploading?: boolean;
+  currentFileName?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -16,7 +20,10 @@ const Header: React.FC<HeaderProps> = ({
   searchQuery, 
   onSearchChange,
   activeTab,
-  onTabChange
+  onTabChange,
+  onFileUpload,
+  isUploading = false,
+  currentFileName
 }) => {
   return (
     <header className="header">
@@ -58,7 +65,16 @@ const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Search and Controls */}
-          <div className="flex items-center space-x-3 flex-shrink-0">
+          <div className="flex items-center space-x-4 flex-shrink-0">
+            {/* Upload Button */}
+            {onFileUpload && (
+              <UploadButton 
+                onFileUpload={onFileUpload}
+                isLoading={isUploading}
+                currentFileName={currentFileName}
+              />
+            )}
+            
             {/* Search Bar */}
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center" style={{ pointerEvents: 'none' }}>

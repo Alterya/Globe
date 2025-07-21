@@ -710,6 +710,63 @@ body {
   text-align: center;
 }
 
+/* File Upload Specific Styles */
+.bg-accent-light {
+  background: var(--accent-light);
+}
+
+.border-error {
+  border-color: var(--error-color) !important;
+}
+
+.bg-error\/5 {
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.border-success {
+  border-color: var(--success-color) !important;
+}
+
+.bg-success\/5 {
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.text-error {
+  color: var(--error-color);
+}
+
+.text-success {
+  color: var(--success-color);
+}
+
+.text-warning {
+  color: var(--warning-color);
+}
+
+/* Upload button animations */
+.btn:hover {
+  transform: scale(1.02);
+}
+
+.hover\:scale-105:hover {
+  transform: scale(1.05);
+}
+
+.transition-transform {
+  transition: transform 0.2s ease;
+}
+
+/* File name truncation */
+.max-w-48 {
+  max-width: 12rem;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Spacing utilities */
 .p-2 {
   padding: 0.5rem;
