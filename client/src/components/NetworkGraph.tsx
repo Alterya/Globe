@@ -247,20 +247,29 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
       address: '#f59e0b'
     };
 
-    // Create force simulation with Apple-like smooth parameters
+    // Create force simulation with fast, stable positioning
     const simulation = d3.forceSimulation<NetworkNode>(processNetworkData.nodes)
       .force('link', d3.forceLink<NetworkNode, NetworkLink>(processNetworkData.links)
         .id(d => d.id)
-        .distance(120)
-        .strength(0.5))
-      .force('charge', d3.forceManyBody().strength(-400).distanceMin(10).distanceMax(400))
-      .force('center', d3.forceCenter(width / 2, height / 2).strength(0.1))
-      .force('collision', d3.forceCollide().radius(35).strength(0.8))
-      .alphaDecay(0.01) // Slower decay for smoother transitions
-      .velocityDecay(0.15) // Reduced velocity for less chaotic movement
-      .alpha(0.3); // Lower initial energy
+        .distance(100)
+        .strength(0.7))
+      .force('charge', d3.forceManyBody().strength(-300).distanceMin(15).distanceMax(300))
+      .force('center', d3.forceCenter(width / 2, height / 2).strength(0.3))
+      .force('collision', d3.forceCollide().radius(30).strength(0.9))
+      .alphaDecay(0.02) // Faster convergence
+      .velocityDecay(0.4) // High friction for stability
+      .alpha(0.8) // Higher initial energy for faster settling
+      .stop(); // Start stopped to pre-calculate positions
 
-    // Create links with smooth entrance animation
+    // Pre-run simulation to get stable positions before showing nodes
+    for (let i = 0; i < 100; i++) {
+      simulation.tick();
+    }
+    
+    // Now restart with lower energy for final settling
+    simulation.alpha(0.1).restart();
+
+    // Create links with fast, smooth entrance
     const linkContainer = container.append('g').attr('class', 'links');
     const link = linkContainer
       .selectAll('line')
@@ -268,15 +277,14 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
       .join('line')
       .attr('stroke', 'var(--border-color)')
       .attr('stroke-opacity', 0) // Start invisible
-      .attr('stroke-width', 0); // Start thin
-    
-    // Animate links entrance
-    link.transition()
-      .duration(600)
-      .ease(d3.easeCubicOut)
-      .delay((d, i) => i * 10) // Staggered animation
-      .attr('stroke-opacity', 0.6)
       .attr('stroke-width', 2);
+    
+    // Links appear with nodes simultaneously
+    link.transition()
+      .duration(300)
+      .ease(d3.easeCubicOut)
+      .delay(0) // Same time as nodes
+      .attr('stroke-opacity', 0.6);
 
     // Create link labels
     const linkLabel = container.append('g')
@@ -298,7 +306,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
       .attr('class', 'node')
       .call(d3.drag<any, NetworkNode>()
         .on('start', (event, d) => {
-          if (!event.active) simulation.alphaTarget(0.2).restart(); // Gentler restart
+          if (!event.active) simulation.alphaTarget(0.1).restart(); // Minimal restart
           d.fx = d.x;
           d.fy = d.y;
         })
@@ -308,40 +316,45 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
         })
         .on('end', (event, d) => {
           if (!event.active) {
-            // Gradual alpha target reduction for smooth settling
-            simulation.alphaTarget(0.1);
-            setTimeout(() => simulation.alphaTarget(0), 300);
+            // Quick settling
+            simulation.alphaTarget(0.05);
+            setTimeout(() => simulation.alphaTarget(0), 100);
           }
           d.fx = null;
           d.fy = null;
         }));
 
-    // Add circles to nodes with smooth entrance animation
-    node.append('circle')
-      .attr('r', 0) // Start with radius 0
+    // Add circles to nodes with fast, controlled entrance
+    const circles = node.append('circle')
+      .attr('r', d => Math.max(8, Math.min(20, 5 + d.value * 2))) // Start at final size
       .attr('fill', d => colorScale[d.group])
       .attr('stroke', d => d3.color(colorScale[d.group])?.darker(0.5)?.toString() || '#000')
       .attr('stroke-width', 2)
       .attr('opacity', 0) // Start invisible
-      .transition()
-      .duration(800)
-      .ease(d3.easeCubicOut)
-      .delay((d, i) => i * 20) // Staggered animation
-      .attr('r', d => Math.max(8, Math.min(20, 5 + d.value * 2)))
-      .attr('opacity', 1);
+      .style('transform', 'scale(0.8)');
 
-    // Add labels to nodes with smooth entrance animation
-    node.append('text')
+    // All nodes appear together instantly
+    circles.transition()
+      .duration(300)
+      .ease(d3.easeCubicOut)
+      .delay(0) // No stagger - all together
+      .attr('opacity', 1)
+      .style('transform', 'scale(1)');
+
+    // Add labels to nodes with fast entrance
+    const labels = node.append('text')
       .attr('dy', '.35em')
       .attr('x', d => Math.max(8, Math.min(20, 5 + d.value * 2)) + 5)
       .attr('font-size', '12px')
       .attr('fill', 'var(--text-primary)')
       .attr('opacity', 0) // Start invisible
-      .text(d => d.label)
-      .transition()
-      .duration(800)
+      .text(d => d.label);
+
+    // Labels appear with everything else
+    labels.transition()
+      .duration(300)
       .ease(d3.easeCubicOut)
-      .delay((d, i) => i * 25) // Slightly different staggering than circles
+      .delay(0) // Same time as nodes and links
       .attr('opacity', 1);
 
     // Add tooltips
@@ -480,12 +493,12 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, searchQuery }) => {
         .attr('transform', d => `translate(${d.x || 0},${d.y || 0})`);
     });
 
-    // Enhanced end behavior with smooth loading state transition
+    // Fast loading state transition
     simulation.on('end', () => {
-      // Add a slight delay for the final animations to complete
+      // Quick transition since animations are now faster
       setTimeout(() => {
         setIsLoading(false);
-      }, 200);
+      }, 50);
     });
 
     return () => {
