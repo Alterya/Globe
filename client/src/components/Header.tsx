@@ -21,9 +21,9 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header className="header">
       <div className="container">
-        <div className="flex justify-between items-center py-4">
+        <div className="flex items-center justify-between py-4">
           {/* Logo and Title */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 flex-shrink-0">
             <div className="p-2 bg-accent rounded-lg">
               <Shield className="h-6 w-6" style={{ color: 'white' }} />
             </div>
@@ -32,32 +32,24 @@ const Header: React.FC<HeaderProps> = ({
                 Globe
               </h1>
               <p className="text-sm text-secondary">
-                Cryptocurrency Threat Analysis Platform
+                By Alterya
               </p>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <div className="flex items-center space-x-6">
-            <nav className="flex space-x-4">
+          {/* Navigation Tabs - Centered */}
+          <div className="flex items-center justify-center flex-1">
+            <nav className="flex space-x-2">
               <button
                 onClick={() => onTabChange('dashboard')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  activeTab === 'dashboard'
-                    ? 'bg-accent text-white'
-                    : 'text-secondary hover:text-primary hover:bg-surface'
-                }`}
+                className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`}
               >
                 <BarChart3 className="h-4 w-4" />
                 <span>Dashboard</span>
               </button>
               <button
                 onClick={() => onTabChange('network')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  activeTab === 'network'
-                    ? 'bg-accent text-white'
-                    : 'text-secondary hover:text-primary hover:bg-surface'
-                }`}
+                className={`tab-button ${activeTab === 'network' ? 'active' : ''}`}
               >
                 <Network className="h-4 w-4" />
                 <span>Network</span>
@@ -66,7 +58,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Search and Controls */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 flex-shrink-0">
             {/* Search Bar */}
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center" style={{ pointerEvents: 'none' }}>
